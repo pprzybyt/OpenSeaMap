@@ -39,7 +39,6 @@
 
         center: degrees2meters(3, 55.5389),
         zoom: 3,
-
         minZoom: 2,
         maxZoom: 10,
 
@@ -70,10 +69,18 @@
         var baseLayer = new ol.layer.Tile({
         source: new ol.source.OSM({
             crossOrigin: null,
-            url: 'tiles/{z}/{x}/{y}.png'
+            url: 'tiles/base/{z}/{x}/{y}.png'
+        })
+    });
+    
+        var seamarkLayer = new ol.layer.Tile({
+        source: new ol.source.OSM({
+            crossOrigin: null,
+            url: 'tiles/seamark/{z}/{x}/{y}.png'
         })
     });
 
+    
 
     var routeCoords = [
         [8.47, 53.577],
@@ -332,7 +339,7 @@
 
 
     map.addLayer(baseLayer);
-  //  map.addLayer(seamarkLayer);
+    map.addLayer(seamarkLayer);
     map.addLayer(vectorLayer);
     map.addLayer(vectorLayer2);
     map.addLayer(pointLayer);
@@ -436,6 +443,7 @@
 
 
     });
+
 
     map.on('moveend', function () {
         polygon.setStyle(styleFunction());
