@@ -5,7 +5,7 @@
             height: 500px;
             width: 100%;
         }
-          .popover-content {
+        .popover-content {
             min-width: 220px;
         }
     </style>
@@ -28,6 +28,7 @@
 
 <script type="text/javascript">
 
+    // function calculating coords between two projections
     var degrees2meters = function(lon,lat) {
         var x = lon * 20037508.34 / 180;
         var y = Math.log(Math.tan((90 + lat) * Math.PI / 360)) / (Math.PI / 180);
@@ -35,14 +36,13 @@
         return [x, y]
     };
 
+    // map view
     var view = new ol.View({
-
         center: degrees2meters(3, 55.5389),
-        zoom: 3,
-        minZoom: 2,
-        maxZoom: 10,
-
+        zoom: 6,
+        minZoom: 2
     });
+
 
     var mousePositionControl = new ol.control.MousePosition({
         coordinateFormat: ol.coordinate.createStringXY(4),
@@ -53,6 +53,7 @@
     });
 
 
+    // main map
     var map = new ol.Map({
         controls: ol.control.defaults({
             attributionOptions:({
@@ -64,23 +65,11 @@
         view: view
 
     });
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
- 
-        var baseLayer = new ol.layer.Tile({
-        source: new ol.source.OSM({
-            crossOrigin: null,
-            url: 'tiles/base/{z}/{x}/{y}.png'
-        })
-    });
-    
-        var seamarkLayer = new ol.layer.Tile({
-        source: new ol.source.OSM({
-            crossOrigin: null,
-            url: 'tiles/seamark/{z}/{x}/{y}.png'
-        })
-    });
-
-    
+                                            /////////////////
+                                            // MAP FEATURES//
+                                            /////////////////
 
     var routeCoords = [
         [8.47, 53.577],
@@ -190,7 +179,14 @@
         geometry: new ol.geom.Point(routePoints[i])})
     }
 
-     styles = {
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+                                                ////////////////////
+                                                // FEATURES STYLE //
+                                                ////////////////////
+
+
+    styles = {
         'lineB': new ol.style.Style({
              stroke: new ol.style.Stroke({
                  width: 30,
@@ -254,14 +250,33 @@
             })
     };
 
-    var source = new ol.source.Vector({});
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-    //source.addFeature(ship);
-    //source.addFeature(centerLineFeature);
-    source.addFeatures(pointFeatures);
+                                                ////////////////////
+                                                //     LAYERS     //
+                                                ////////////////////
+
+
+    var baseLayer = new ol.layer.Tile({
+        source: new ol.source.OSM({
+            crossOrigin: null,
+            url: 'tiles/base/{z}/{x}/{y}.png'
+        })
+    });
+
+    var seamarkLayer = new ol.layer.Tile({
+        source: new ol.source.OSM({
+            crossOrigin: null,
+            url: 'tiles/seamark/{z}/{x}/{y}.png'
+        })
+    });
+
+    var pointSource = new ol.source.Vector({});
+
+    pointSource.addFeatures(pointFeatures);
 
     var pointLayer = new ol.layer.Vector({
-        source: source,
+        source: pointSource,
         style: function(feature) {
             var style = styles[feature.get('type')];
             style.setText(new ol.style.Text({
@@ -285,7 +300,7 @@
     });
 
 
-    function styleFunction() {
+    function polygonStyleFunction() {
         return [
             new ol.style.Style({
                 fill: new ol.style.Fill({
@@ -303,7 +318,7 @@
         ];
     }
 
-    polygon.setStyle(styleFunction());
+    polygon.setStyle(polygonStyleFunction());
 
 
     var polygonLayer = new ol.layer.Vector({
@@ -311,15 +326,6 @@
         zIndex: 1
     });
 
-    map.on('moveend', function () {
-        polygon.setStyle(styleFunction());
-    });
-
-
-    var polygonLayer = new ol.layer.Vector({
-        source: new ol.source.Vector({features: [polygon]}),
-        zIndex: 1
-    });
 
     var vectorLayer2 = new ol.layer.Vector({
         source: new ol.source.Vector({features: [centerLineFeature]}),
@@ -339,7 +345,7 @@
 
 
     map.addLayer(baseLayer);
-    map.addLayer(seamarkLayer);
+   // map.addLayer(seamarkLayer);          // not every tile downloaded
     map.addLayer(vectorLayer);
     map.addLayer(vectorLayer2);
     map.addLayer(pointLayer);
@@ -347,72 +353,17 @@
     map.addLayer(polygonLayer);
 
 
-    var point = null;
-    var line = null;
-    var closestPoint = null;
 
-    var displaySnap = function(coordinate) {
-        var closestFeature = source.getClosestFeatureToCoordinate(coordinate);
-        if (closestFeature === null) {
-            point = null;
-            line = null;
-        } else {
-            var geometry = closestFeature.getGeometry();
-            if(geometry.getType() === 'Point'){
-                closestPoint = geometry.getClosestPoint(coordinate);
-                if (point === null) {
-                    point = new ol.geom.Point(closestPoint);
-                } else {
-                    point.setCoordinates(closestPoint);
-                }}
-                if (line === null) {
-                    line = new ol.geom.LineString([coordinate, closestPoint]);
-                } else {
-                    line.setCoordinates([coordinate, closestPoint]);
-                }
-            }
+    //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-        map.render();
-    };
+                                            ////////////////////
+                                            //  INTERACTIONS  //
+                                            ////////////////////
 
-    map.on('pointermove', function(evt) {
-        if (evt.dragging) {
-            return;
-        }
-        var coordinate = map.getEventCoordinate(evt.originalEvent);
-        displaySnap(coordinate);
 
+    map.on('moveend', function () {
+        polygon.setStyle(polygonStyleFunction());
     });
-
-
-
-    var stroke = new ol.style.Stroke({
-        color: 'rgba(0,0,0,0.5)',
-        width: 3
-    });
-    var style = new ol.style.Style({
-        stroke: stroke,
-        image: new ol.style.Circle({
-            radius: 10,
-            stroke: stroke
-        })
-    });
-
-    map.on('postcompose', function(evt) {
-        var vectorContext = evt.vectorContext;
-        vectorContext.setStyle(style);
-        if (point !== null) {
-            vectorContext.drawGeometry(point);
-        }
-        if (line !== null) {
-            vectorContext.drawGeometry(line);
-        }
-    });
-
-    var popup = new ol.Overlay({
-        element: document.getElementById('popup')
-    });
-    map.addOverlay(popup);
 
     map.on('click', function(e) {
         var element = popup.getElement();
@@ -438,41 +389,9 @@
                 });
                 $(element).popover('show');
             }}
-            else
-                $(element).popover('hide');
-
-
+        else
+            $(element).popover('hide');
     });
-
-
-    map.on('moveend', function () {
-        polygon.setStyle(styleFunction());
-    });
-
-
-    var weatherLayers = [
-        new ol.layer.Tile({
-            source: new ol.source.XYZ({
-                url: 'http://tile.openweathermap.org/map/temp_new/{z}/{x}/{y}.png?appid=9855483cd72e3e1287615d83e5a09324'
-            })
-        }),
-        new ol.layer.Tile({
-            source: new ol.source.XYZ({
-                url: 'http://tile.openweathermap.org/map/pressure_new/{z}/{x}/{y}.png?appid=9855483cd72e3e1287615d83e5a09324'
-            })
-        }),
-        new ol.layer.Tile({
-            source: new ol.source.XYZ({
-                url: 'http://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=9855483cd72e3e1287615d83e5a09324'
-            })
-        }),
-        new ol.layer.Tile({
-            source: new ol.source.XYZ({
-                url: 'http://tile.openweathermap.org/map/precipitation_new/{z}/{x}/{y}.png?appid=9855483cd72e3e1287615d83e5a09324'
-            })
-        })
-
-    ];
 
     var selectClick = new ol.interaction.Select({
         condition: ol.events.condition.selectSingleClick
@@ -485,7 +404,78 @@
     });
 
 
-    </script>
+    // NEAREST POINT MARKER
+
+    var point = null;
+    var line = null;
+    var closestPoint = null;
+
+    var displaySnap = function(coordinate) {
+        var closestFeature = pointSource.getClosestFeatureToCoordinate(coordinate);
+        if (closestFeature === null) {
+            point = null;
+            line = null;
+        } else {
+            var geometry = closestFeature.getGeometry();
+            if(geometry.getType() === 'Point'){
+                closestPoint = geometry.getClosestPoint(coordinate);
+                if (point === null) {
+                    point = new ol.geom.Point(closestPoint);
+                } else {
+                    point.setCoordinates(closestPoint);
+                }}
+            if (line === null) {
+                line = new ol.geom.LineString([coordinate, closestPoint]);
+            } else {
+                line.setCoordinates([coordinate, closestPoint]);
+            }
+        }
+        map.render();
+    };
+
+    map.on('pointermove', function(evt) {
+        if (evt.dragging) {
+            return;
+        }
+        var coordinate = map.getEventCoordinate(evt.originalEvent);
+        displaySnap(coordinate);
+
+    });
+
+
+    var stroke = new ol.style.Stroke({
+        color: 'rgba(0,0,0,0.5)',
+        width: 3
+    });
+    var style = new ol.style.Style({
+        stroke: stroke,
+        image: new ol.style.Circle({
+            radius: 10,
+            stroke: stroke
+        })
+    });
+
+    map.on('postcompose', function(evt) {
+        var vectorContext = evt.vectorContext;
+        vectorContext.setStyle(style);
+        if (point !== null) {
+            vectorContext.drawGeometry(point);
+        }
+        if (line !== null) {
+            vectorContext.drawGeometry(line);
+        }
+    });
+
+
+    // POPUP
+    var popup = new ol.Overlay({
+        element: document.getElementById('popup')
+    });
+    map.addOverlay(popup);
+
+
+
+</script>
     </body>
 
 
